@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC Parts Tracker | CPU & RAM Auto Researcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-badge">LGA1151 / DDR4</div>
+          <h1 class="brand-title">PC Parts Auto Researcher</h1>
+        </div>
+        <p class="brand-subtitle">
+          Target: <strong>Gigabyte GA-H110-D3A</strong> &bull; Radius: <strong>Newmarket, ON (20km)</strong> &bull; Region: <strong>Canada Only</strong>
+        </p>
+      </div>
+
+      <div class="header-right">
+        <div class="live-status-pill">
+          <span class="status-dot"></span>
+          <span id="last-updated-text">Updating...</span>
+        </div>
+        <button id="refresh-btn" class="btn btn-primary">
+          <svg class="icon-refresh" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span id="refresh-btn-text">Run Scan</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Metrics Ribbon -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Verified Canadian Listings</div>
+        <div class="metric-val" id="metric-total-listings">-</div>
+        <div class="metric-sub">Strict 'Located in: Canada'</div>
+      </div>
+      <div class="metric-card highlight-local">
+        <div class="metric-label">Newmarket 20km Deals</div>
+        <div class="metric-val" id="metric-local-deals">-</div>
+        <div class="metric-sub">Aurora, Bradford, Keswick, EG</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Top CPU Multi-Core Power</div>
+        <div class="metric-val" id="metric-top-cpu-power">9,700 <span class="unit">pts</span></div>
+        <div class="metric-sub">PassMark Benchmark Index</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">RAM Kits / Sticks Tracked</div>
+        <div class="metric-val" id="metric-ram-count">-</div>
+        <div class="metric-sub">Desktop DDR4 UDIMM Non-ECC</div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="tab-overall">
+        🏆 Top 5 Overall CPUs
+      </button>
+      <button class="nav-tab" data-tab="tab-local">
+        📍 Local 20km Radar
+      </button>
+      <button class="nav-tab" data-tab="tab-models">
+        📌 Model Breakdowns
+      </button>
+      <button class="nav-tab" data-tab="tab-explorer">
+        🔎 All Listings Explorer
+      </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+      
+      <!-- TAB 1: OVERALL CPU LEADERBOARD -->
+      <section id="tab-overall" class="tab-pane active">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">🥇 Top 5 Overall Best Value CPUs</h2>
+            <p class="section-desc">Weighted ranking combining PassMark multi-core benchmarks (30%), price-per-point efficiency (35%), seller trustworthiness (20%), and proximity (15%).</p>
+          </div>
+        </div>
+
+        <div id="overall-leaderboard-container" class="leaderboard-grid">
+          <!-- Dynamic Leaderboard Cards -->
+          <div class="loading-state">Loading overall rankings...</div>
+        </div>
+      </section>
+
+      <!-- TAB 2: LOCAL 20KM RADAR -->
+      <section id="tab-local" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">📍 Immediate 20km Local Radius Radar</h2>
+            <p class="section-desc">Listings available for same-day local in-person pickup in Newmarket, Aurora, Bradford, King City, East Gwillimbury, Keswick, Stouffville, and Richmond Hill.</p>
+          </div>
+        </div>
+
+        <div class="local-sections">
+          <div class="local-col">
+            <h3 class="subsection-title">Local CPUs (20km)</h3>
+            <div id="local-cpus-container" class="listings-stack">
+              <div class="loading-state">Checking local CPU listings...</div>
+            </div>
+          </div>
+
+          <div class="local-col">
+            <h3 class="subsection-title">Local RAM (20km)</h3>
+            <div id="local-ram-container" class="listings-stack">
+              <div class="loading-state">Checking local RAM listings...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: PER-MODEL BREAKDOWNS -->
+      <section id="tab-models" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">📌 Component Category & Model Top 5</h2>
+            <p class="section-desc">Top ranked deals broken down by specific CPU silicon variant and DDR4 RAM.</p>
+          </div>
+          <div class="model-filter-buttons" id="model-filter-pill-container">
+            <!-- Dynamic model filter pills -->
+          </div>
+        </div>
+
+        <div id="model-breakdowns-container" class="model-cards-container">
+          <div class="loading-state">Loading model breakdowns...</div>
+        </div>
+      </section>
+
+      <!-- TAB 4: ALL LISTINGS EXPLORER -->
+      <section id="tab-explorer" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">🔎 Listings Explorer</h2>
+            <p class="section-desc">Search, filter, and compare all verified Canadian listings live.</p>
+          </div>
+        </div>
+
+        <!-- Controls Toolbar -->
+        <div class="toolbar">
+          <div class="search-box">
+            <input type="text" id="filter-search" placeholder="Search by title, city, or seller..." autocomplete="off">
+          </div>
+          <div class="filter-controls">
+            <select id="filter-category" class="select-input">
+              <option value="">All Categories</option>
+              <option value="CPU">CPUs Only</option>
+              <option value="RAM">RAM Only</option>
+            </select>
+            <select id="filter-model" class="select-input">
+              <option value="">All Hardware Models</option>
+              <option value="i7-7700K">Core i7-7700K</option>
+              <option value="i7-7700">Core i7-7700</option>
+              <option value="i7-7700T">Core i7-7700T</option>
+              <option value="i7-6700K">Core i7-6700K</option>
+              <option value="i7-6700">Core i7-6700</option>
+              <option value="i7-6700T">Core i7-6700T</option>
+              <option value="Xeon">Xeon E3-1200</option>
+              <option value="RAM">DDR4 UDIMM</option>
+            </select>
+            <label class="checkbox-label">
+              <input type="checkbox" id="filter-local-only">
+              <span>Local 20km Only</span>
+            </label>
+            <select id="filter-sort" class="select-input">
+              <option value="overall_score">Sort: Best Overall Value</option>
+              <option value="benchmark_score">Sort: PassMark Benchmark</option>
+              <option value="price_asc">Sort: Price (Low to High)</option>
+              <option value="price_desc">Sort: Price (High to Low)</option>
+              <option value="trust_score">Sort: Seller Trust Score</option>
+              <option value="date_found">Sort: Date Found</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Hardware / Model</th>
+                <th>Listing Title</th>
+                <th>Price (CAD)</th>
+                <th>Benchmark</th>
+                <th>Overall Value</th>
+                <th>Trust Score</th>
+                <th>Location</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="explorer-table-body">
+              <tr>
+                <td colspan="8" class="loading-state">Loading listings...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="results-count-text">Showing 0 results</span>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- App Footer -->
+    <footer class="app-footer">
+      <p>Automated Research Tracker for Gigabyte GA-H110-D3A Motherboard &bull; Continuous background synchronization active.</p>
+    </footer>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

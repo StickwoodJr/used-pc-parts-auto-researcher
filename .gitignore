@@ -1,0 +1,28 @@
+# Environment variables & credentials
+.env
+*.env
+service_account*.json
+credentials*.json
+*.pem
+*.key
+
+# Authentication and browser session data
+.auth/
+*.session
+session_data/
+token.json
+
+# Python cache & artifacts
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & temporary files
+*.log
+scratch/
+tmp/
