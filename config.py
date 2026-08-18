@@ -39,6 +39,7 @@ RAM_SCAM_PRICE_THRESHOLD = float(os.getenv("RAM_SCAM_PRICE_THRESHOLD", "10.0"))
 
 # Search Queries
 CPU_SEARCH_TERMS = [
+    # Specific compatible models
     "i7-6700",
     "i7-6700K",
     "i7-6700T",
@@ -53,6 +54,25 @@ CPU_SEARCH_TERMS = [
     "Xeon E3-1240 v6",
     "Xeon E3-1270 v6",
     "Xeon E3-1275 v6",
+    # Socket & architecture queries
+    "LGA1151 CPU",
+    "LGA 1151 processor",
+    "Socket 1151 CPU",
+    "Socket 1151",
+    "LGA1151",
+    "Skylake CPU",
+    "Kaby Lake CPU",
+    # Generation & broader queries
+    "Intel 6th Gen CPU",
+    "Intel 7th Gen CPU",
+    "Intel 6th Gen i7",
+    "Intel 7th Gen i7",
+    "Intel Core i7",
+    "Intel CPU",
+    "desktop CPU",
+    "Xeon LGA 1151",
+    "PC part out CPU",
+    "computer parts CPU",
 ]
 
 RAM_SEARCH_TERMS = [
@@ -62,6 +82,15 @@ RAM_SEARCH_TERMS = [
     "2x4GB DDR4",
     "16GB 2x8GB DDR4 desktop",
     "8GB DDR4 desktop UDIMM",
+    "DDR4 Desktop RAM",
+    "DDR4 UDIMM",
+    "DDR4 3200MHz",
+    "DDR4 2666MHz",
+    "DDR4 2400MHz",
+    "DDR4 memory",
+    "desktop RAM",
+    "PC RAM",
+    "computer RAM DDR4",
 ]
 
 # Proximity matching for Newmarket / York Region / Greater Toronto Area (GTA)
