@@ -102,9 +102,14 @@ def is_cpu_compatible(title: str) -> bool:
 
 def is_ram_compatible(title: str) -> bool:
     """
-    Evaluates whether a RAM title matches Desktop DDR4 UDIMM (non-ECC).
-    Matches: 1x8GB, 1x16GB, 2x8GB (16GB kit), 2x4GB (8GB kit).
-    Rejects: Laptop/SODIMM, Server ECC/RDIMM, DDR3, DDR5, and >16GB per stick.
+    Evaluates whether a RAM title matches Desktop DDR4 UDIMM (non-ECC) with 8GB stick capacity.
+    Matches:
+      - Single 8GB sticks (1x8GB, 8GB DDR4 UDIMM, 8GB 2400/2666/3200MHz)
+      - 2x8GB kits (16GB kit consisting of two 8GB sticks)
+    Rejects:
+      - 4GB sticks and 2x4GB kits (4GB stick capacity)
+      - Single 16GB / 32GB / 64GB modules
+      - Laptop SODIMM, Server ECC/RDIMM, DDR3, DDR5.
     """
     if not title:
         return False
@@ -116,7 +121,6 @@ def is_ram_compatible(title: str) -> bool:
         return False
 
     # Reject ECC / Registered / Server / RDIMM / LRDIMM
-    # Note: If it says "non-ecc", that's allowed
     if re.search(r"\b(rdimm|lrdimm|registered|buffered|server ram)\b", t):
         return False
     if re.search(r"\becc\b", t) and not re.search(r"\b(non-ecc|non ecc|unbuffered)\b", t):
@@ -130,30 +134,36 @@ def is_ram_compatible(title: str) -> bool:
     if not re.search(r"\b(ddr4|pc4)\b", t):
         return False
 
-    # Reject 32GB single sticks, 64GB, 128GB, or 4-stick kits
-    if re.search(r"\b(32gb|32g|64gb|64g|128gb|4x8gb|4x16gb|4x4gb)\b", t):
+    # Reject 4GB sticks / 2x4GB kits / 4-stick kits
+    if re.search(r"\b(2x4gb|2\s*x\s*4gb|2x4g|1x4gb|4x8gb|4x16gb|4x4gb|kit of 4|4 sticks)\b", t):
+        return False
+    if re.search(r"\b4gb\b", t) and not re.search(r"\b(8gb|16gb)\b", t):
         return False
 
-    # Positive Match: Configurations
-    # 1. 2x8GB (16GB kit)
-    if re.search(r"\b(2x8gb|2\s*x\s*8gb|2x8g|16gb\s*\(?2x8gb\)?|16gb\s*kit\s*\(?2x8gb\)?|16gb\s*2x8)\b", t):
-        return True
-    
-    # 2. 2x4GB (8GB kit)
-    if re.search(r"\b(2x4gb|2\s*x\s*4gb|2x4g|8gb\s*\(?2x4gb\)?|8gb\s*kit\s*\(?2x4gb\)?|8gb\s*2x4)\b", t):
+    # Reject 32GB / 64GB / 128GB modules
+    if re.search(r"\b(32gb|32g|64gb|64g|128gb)\b", t):
+        return False
+
+    # Reject single 16GB sticks
+    if re.search(r"\b(1x16gb|1\s*x\s*16gb|single\s*16gb|16gb\s*\(?1x16gb\)?)\b", t):
+        return False
+
+    # Positive Match 1: 2x8GB (Kit of two 8GB sticks)
+    if re.search(r"\b(2x8gb|2\s*x\s*8gb|2x8g|16gb\s*\(?2x8gb\)?|16gb\s*kit\s*\(?2x8gb\)?|16gb\s*2x8|2x\s*8g)\b", t):
         return True
 
-    # 3. 1x16GB single stick
-    if re.search(r"\b(1x16gb|1\s*x\s*16gb|16gb\s*\(?1x16gb\)?|single\s*16gb|16gb\s*(stick|dimm|udimm))\b", t):
-        return True
-    # General 16GB DDR4 UDIMM / desktop stick (when not a 4x kit or laptop)
-    if re.search(r"\b16gb\b", t) and not re.search(r"\b(4x|kit of 4)\b", t):
+    # Positive Match 2: If title mentions 16GB total with explicit dual/2-stick indicator
+    if re.search(r"\b16gb\b", t) and re.search(r"\b(2x|2 sticks|2x8|kit of 2|pair|dual)\b", t):
         return True
 
-    # 4. 1x8GB single stick / 8GB desktop DDR4
-    if re.search(r"\b(1x8gb|1\s*x\s*8gb|8gb\s*\(?1x8gb\)?|single\s*8gb|8gb\s*(stick|dimm|udimm))\b", t):
+    # Reject ambiguous 16GB listings that don't indicate 2x8GB
+    if re.search(r"\b16gb\b", t):
+        return False
+
+    # Positive Match 3: Single 8GB desktop stick
+    if re.search(r"\b(1x8gb|1\s*x\s*8gb|8gb\s*\(?1x8gb\)?|single\s*8gb|8gb\s*(stick|dimm|udimm|module|ram|desktop|memory|2400|2666|3000|3200))\b", t):
         return True
-    if re.search(r"\b8gb\b", t) and not re.search(r"\b(2x|4x|kit of 2|kit of 4)\b", t):
+    if re.search(r"\b8gb\b", t):
         return True
 
     return False

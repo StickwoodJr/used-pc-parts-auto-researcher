@@ -61,11 +61,11 @@ class TestRAMFilter:
             "Corsair Vengeance LPX 16GB (2x8GB) DDR4 3200MHz Desktop UDIMM",
             "G.Skill Ripjaws V 16GB 2x8GB DDR4-3600 CL16 Desktop Memory",
             "Kingston Fury Beast 8GB (1x8GB) DDR4 3200MHz Non-ECC CL16 Desktop Memory",
-            "Crucial 16GB Single DDR4 2666 MT/s (PC4-21300) CL19 DR UDIMM 288-Pin Desktop RAM",
-            "Crucial 8GB (2x4GB) DDR4 2400MHz Desktop RAM UDIMM",
             "Samsung 8GB 1Rx8 PC4-2400T DDR4 Desktop UDIMM Memory",
             "HyperX Fury 16GB (2x8GB) DDR4 2666MHz Desktop RAM",
             "Corsair Vengeance 8GB DDR4 2400 Desktop Memory Single Stick",
+            "16gb ddr4 ram 3200mhz 2x8",
+            "Kingston HyperX Fury 16GB (2x8GB) DDR4 2933MHz RAM",
         ],
     )
     def test_compatible_ram_accepted(self, title):
@@ -74,6 +74,11 @@ class TestRAMFilter:
     @pytest.mark.parametrize(
         "title",
         [
+            "Crucial 8GB (2x4GB) DDR4 2400MHz Desktop RAM UDIMM",              # 2x4GB (4GB sticks)
+            "SK Hynix 8GB (2x4GB) DDR4 2133MHz PC4-2133P RAM",                 # 2x4GB (4GB sticks)
+            "Crucial 4GB DDR4 2400 Desktop RAM",                               # 4GB stick
+            "Crucial 16GB Single DDR4 2666 MT/s CL19 DR UDIMM Desktop RAM",   # 16GB single stick
+            "Samsung 16GB DDR4 Single Stick",                                  # 16GB single stick
             "Crucial 16GB Single DDR4 3200 SODIMM Laptop Memory",              # Laptop / SODIMM
             "Samsung 8GB PC4-2666V SODIMM Laptop RAM",                         # Laptop / SODIMM
             "Samsung 16GB 2Rx8 PC4-2400T DDR4 ECC Registered RDIMM Server RAM", # ECC Registered / RDIMM

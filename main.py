@@ -93,7 +93,7 @@ def generate_mock_fixtures() -> List[ListingItem]:
         ),
         ListingItem(
             category="RAM",
-            title="DDR4 16GB Desktop RAM Stick - $5",
+            title="DDR4 8GB Desktop RAM Stick - $5",
             price=5.00,
             condition="Used",
             location="Newmarket, ON",
