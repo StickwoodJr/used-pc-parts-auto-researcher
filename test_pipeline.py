@@ -23,9 +23,9 @@ class TestPipelineVerification:
         assert len(first_run_added) == 7
         assert len(shared_sheet.rows) - 1 == 7
 
-        # Run 2: Should add 0 items because all URLs are duplicates
+        # Run 2: Replaces existing rows with fresh scan items, keeping row count at 7 with zero duplicates
         second_run_added = run_pipeline(mock=True, shared_mock_sheet=shared_sheet)
-        assert len(second_run_added) == 0
+        assert len(second_run_added) == 7
         assert len(shared_sheet.rows) - 1 == 7
 
     def test_all_rows_have_non_blank_location_match_type(self):

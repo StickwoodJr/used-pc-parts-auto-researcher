@@ -265,62 +265,40 @@ class SheetsManager:
 
     def sync_listings(self, incoming_items: List[ListingItem]) -> Tuple[List[ListingItem], int]:
         """
-        Deduplicates incoming listings, appends new rows to the raw archive,
-        processes all listings with DataProcessor, and updates the Master Summary
-        and all dedicated model tabs.
+        Clears existing raw listings from the worksheet and populates with fresh scan results,
+        processes all listings with DataProcessor, and updates the Master Summary,
+        Local Summary (20km), and all dedicated model tabs.
         """
         if not self.connect():
             raise RuntimeError(
                 f"Google Sheets connection failed. Please ensure '{self.service_account_file}' exists and is shared."
             )
 
-        existing_urls = self.get_existing_urls()
-        new_items: List[ListingItem] = []
+        # Deduplicate incoming items and enforce Canadian location
+        seen_urls = set()
+        valid_items: List[ListingItem] = []
 
-        # Deduplication check
         for item in incoming_items:
             norm_url = normalize_url(item.listing_url)
-            if norm_url and norm_url not in existing_urls:
-                new_items.append(item)
-                existing_urls.add(norm_url)
+            if norm_url and norm_url not in seen_urls and is_canadian_location(item.location):
+                seen_urls.add(norm_url)
+                valid_items.append(item)
 
-        if new_items:
-            rows_to_append = [it.to_row() for it in new_items]
-            self.worksheet.append_rows(rows_to_append, value_input_option="USER_ENTERED")
+        # Sort valid items by category then price
+        valid_items.sort(key=lambda x: (x.category, x.price))
 
-        # Read all items in raw archive to process full multi-tab structure
-        all_raw_rows = self.worksheet.get_all_values()
-        all_items: List[ListingItem] = []
-
-        if len(all_raw_rows) > 1:
-            for r in all_raw_rows[1:]:
-                if len(r) > 6 and r[6].strip():
-                    loc_str = r[5] if len(r) > 5 else "Canada"
-                    # Strict Canadian location verification
-                    if not is_canadian_location(loc_str):
-                        continue
-                    try:
-                        price_val = float(str(r[3]).replace("$", "").replace(",", "").strip())
-                    except (ValueError, TypeError):
-                        price_val = 0.0
-                    all_items.append(
-                        ListingItem(
-                            date_found=r[0] if len(r) > 0 else "",
-                            category=r[1] if len(r) > 1 else "",
-                            title=r[2] if len(r) > 2 else "",
-                            price=price_val,
-                            condition=r[4] if len(r) > 4 else "Used",
-                            location=loc_str,
-                            listing_url=r[6],
-                            status=r[7] if len(r) > 7 else "New",
-                            location_match_type=r[8] if len(r) > 8 else "",
-                        )
-                    )
+        # Clear existing listings and write fresh entries
+        self.worksheet.clear()
+        fresh_rows = [SHEET_HEADERS] + [it.to_row() for it in valid_items]
+        self.worksheet.update(f"A1:L{len(fresh_rows)}", fresh_rows, value_input_option="USER_ENTERED")
+        try:
+            self.worksheet.format("A1:L1", {"textFormat": {"bold": True}})
+        except Exception:
+            pass
 
         # Process with DataProcessor
         processor = DataProcessor()
-        valid_items_to_process = all_items if all_items else [it for it in incoming_items if is_canadian_location(it.location)]
-        buckets = processor.process_all_listings(valid_items_to_process)
+        buckets = processor.process_all_listings(valid_items)
         top_5_by_model = processor.get_top_5_per_model(buckets)
         top_5_overall_cpus = processor.get_top_5_overall_cpus(buckets)
         top_local_cpus = processor.get_top_local_20km_cpus(buckets)
@@ -331,8 +309,8 @@ class SheetsManager:
         self.update_local_summary_tab(top_local_cpus, top_local_ram)
         self.update_model_tabs(buckets)
 
-        total_rows = len(all_items)
-        return new_items, total_rows
+        total_rows = len(valid_items)
+        return valid_items, total_rows
 
 
 class MockSheetsManager:
@@ -351,14 +329,15 @@ class MockSheetsManager:
         return {normalize_url(row[6]) for row in self.rows[1:] if len(row) > 6}
 
     def sync_listings(self, incoming_items: List[ListingItem]) -> Tuple[List[ListingItem], int]:
-        existing_urls = self.get_existing_urls()
-        new_items: List[ListingItem] = []
+        self.rows = [SHEET_HEADERS]
+        seen_urls = set()
+        valid_items: List[ListingItem] = []
 
         for item in incoming_items:
             norm_url = normalize_url(item.listing_url)
-            if norm_url not in existing_urls:
-                new_items.append(item)
-                existing_urls.add(norm_url)
+            if norm_url and norm_url not in seen_urls and is_canadian_location(item.location):
+                seen_urls.add(norm_url)
+                valid_items.append(item)
                 self.rows.append(item.to_row())
 
         processor = DataProcessor()
@@ -377,7 +356,7 @@ class MockSheetsManager:
 
         self._sort_rows()
         total_count = len(self.rows) - 1
-        return new_items, total_count
+        return valid_items, total_count
 
     def _sort_rows(self):
         if len(self.rows) <= 2:
