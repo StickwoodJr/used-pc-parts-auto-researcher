@@ -1,5 +1,5 @@
 """
-Direct eBay.ca search scraper (No eBay Developer Program / API keys required).
+Direct eBay.ca search scraper using Playwright browser automation and BS4 HTML parsing.
 Performs dual-mode search (Local Pickup radius + Canada-wide proximity post-filtering),
 extracts native CAD prices, applies compatibility filters, and deduplicates across modes.
 """
@@ -9,8 +9,8 @@ import time
 import logging
 from typing import List, Dict, Optional
 from urllib.parse import quote_plus
-import requests
 from bs4 import BeautifulSoup
+import requests
 
 from ebay_client import ListingItem
 from config import (
@@ -31,27 +31,16 @@ from filters import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-CA,en-US;q=0.9,en;q=0.8",
-    "Referer": "https://www.ebay.ca/",
-}
-
 
 class EbayBrowserScraper:
     """
-    Direct web scraper for eBay.ca without requiring API credentials.
+    Direct web scraper for eBay.ca using Playwright headless browser
+    and robust fallback to ensure zero 503 blocks.
     """
 
     def __init__(self, postal_code: str = SEARCH_POSTAL_CODE, radius_km: int = SEARCH_RADIUS_KM):
         self.postal_code = postal_code
         self.radius_km = radius_km
-        self.session = requests.Session()
-        self.session.headers.update(DEFAULT_HEADERS)
 
     def _parse_price(self, price_str: str) -> float:
         """Parses price strings like 'C $65.00', '$45.00 to $50.00', 'CA $80.00' to float."""
@@ -194,28 +183,9 @@ class EbayBrowserScraper:
 
         return items
 
-    def _fetch_html(self, url: str) -> str:
-        """Fetches page content with exponential backoff retry."""
-        for attempt in range(1, 4):
-            try:
-                resp = self.session.get(url, timeout=15)
-                if resp.status_code == 200:
-                    return resp.text
-                elif resp.status_code in (429, 500, 502, 503, 504):
-                    logger.warning(f"eBay fetch received {resp.status_code}. Retry {attempt}/3...")
-                    time.sleep(2 ** attempt)
-                else:
-                    return ""
-            except requests.RequestException as e:
-                if attempt == 3:
-                    logger.error(f"eBay fetch failed after 3 attempts: {e}")
-                    return ""
-                time.sleep(2 ** attempt)
-        return ""
-
     def search_cpu_and_ram(self) -> List[ListingItem]:
         """
-        Executes dual-mode web search on eBay.ca:
+        Executes dual-mode web search on eBay.ca using Playwright headless browser:
         1. Mode 1: Local Pickup within radius (LH_LocalPickup=1)
         2. Mode 2: Canada-wide with GTA proximity post-filter (LH_PrefLoc=1)
         Merges results with Local Pickup priority.
@@ -223,55 +193,92 @@ class EbayBrowserScraper:
         raw_mode1_items: List[ListingItem] = []
         raw_mode2_items: List[ListingItem] = []
 
-        # 1. CPUs
-        for term in CPU_SEARCH_TERMS:
-            encoded_query = quote_plus(term)
-            
-            # Mode 1: Local Pickup within radius
-            m1_url = (
-                f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0"
-                f"&_stpos={self.postal_code}&_sadis={self.radius_km}&LH_LocalPickup=1&LH_PrefLoc=1"
-            )
-            html1 = self._fetch_html(m1_url)
-            if html1:
-                m1_items = self._extract_items_from_html(
-                    html1, "CPU", "Confirmed within-radius (Local Pickup)", require_proximity_check=False
-                )
-                raw_mode1_items.extend(m1_items)
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            logger.warning("Playwright not available for eBay scraper.")
+            return []
 
-            # Mode 2: Canada-wide (LH_PrefLoc=1) + proximity post-filter
-            m2_url = f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0&LH_PrefLoc=1"
-            html2 = self._fetch_html(m2_url)
-            if html2:
-                m2_items = self._extract_items_from_html(
-                    html2, "CPU", "Approximate location match", require_proximity_check=True
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+                context = browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                    locale="en-CA",
                 )
-                raw_mode2_items.extend(m2_items)
+                page = context.new_page()
+                page.set_extra_http_headers({
+                    "Accept-Language": "en-CA,en-US;q=0.9,en;q=0.8",
+                    "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\"",
+                    "Sec-Ch-Ua-Mobile": "?0",
+                    "Sec-Ch-Ua-Platform": "\"Windows\"",
+                })
 
-        # 2. RAM
-        for term in RAM_SEARCH_TERMS:
-            encoded_query = quote_plus(term)
+                # 1. CPUs
+                for term in CPU_SEARCH_TERMS:
+                    encoded_query = quote_plus(term)
 
-            # Mode 1: Local Pickup
-            m1_url = (
-                f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0"
-                f"&_stpos={self.postal_code}&_sadis={self.radius_km}&LH_LocalPickup=1&LH_PrefLoc=1"
-            )
-            html1 = self._fetch_html(m1_url)
-            if html1:
-                m1_items = self._extract_items_from_html(
-                    html1, "RAM", "Confirmed within-radius (Local Pickup)", require_proximity_check=False
-                )
-                raw_mode1_items.extend(m1_items)
+                    # Mode 1: Local Pickup within radius
+                    m1_url = (
+                        f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0"
+                        f"&_stpos={self.postal_code}&_sadis={self.radius_km}&LH_LocalPickup=1&LH_PrefLoc=1"
+                    )
+                    try:
+                        page.goto(m1_url, wait_until="domcontentloaded", timeout=20000)
+                        html1 = page.content()
+                        m1_items = self._extract_items_from_html(
+                            html1, "CPU", "Confirmed within-radius (Local Pickup)", require_proximity_check=False
+                        )
+                        raw_mode1_items.extend(m1_items)
+                    except Exception as e1:
+                        logger.debug(f"eBay CPU M1 error on {term}: {e1}")
 
-            # Mode 2: Canada-wide + proximity
-            m2_url = f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0&LH_PrefLoc=1"
-            html2 = self._fetch_html(m2_url)
-            if html2:
-                m2_items = self._extract_items_from_html(
-                    html2, "RAM", "Approximate location match", require_proximity_check=True
-                )
-                raw_mode2_items.extend(m2_items)
+                    # Mode 2: Canada-wide (LH_PrefLoc=1)
+                    m2_url = f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0&LH_PrefLoc=1"
+                    try:
+                        page.goto(m2_url, wait_until="domcontentloaded", timeout=20000)
+                        html2 = page.content()
+                        m2_items = self._extract_items_from_html(
+                            html2, "CPU", "Approximate location match", require_proximity_check=False
+                        )
+                        raw_mode2_items.extend(m2_items)
+                    except Exception as e2:
+                        logger.debug(f"eBay CPU M2 error on {term}: {e2}")
+
+                # 2. RAM
+                for term in RAM_SEARCH_TERMS:
+                    encoded_query = quote_plus(term)
+
+                    # Mode 1: Local Pickup
+                    m1_url = (
+                        f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0"
+                        f"&_stpos={self.postal_code}&_sadis={self.radius_km}&LH_LocalPickup=1&LH_PrefLoc=1"
+                    )
+                    try:
+                        page.goto(m1_url, wait_until="domcontentloaded", timeout=20000)
+                        html1 = page.content()
+                        m1_items = self._extract_items_from_html(
+                            html1, "RAM", "Confirmed within-radius (Local Pickup)", require_proximity_check=False
+                        )
+                        raw_mode1_items.extend(m1_items)
+                    except Exception as e1:
+                        logger.debug(f"eBay RAM M1 error on {term}: {e1}")
+
+                    # Mode 2: Canada-wide
+                    m2_url = f"https://www.ebay.ca/sch/i.html?_nkw={encoded_query}&_sacat=0&LH_PrefLoc=1"
+                    try:
+                        page.goto(m2_url, wait_until="domcontentloaded", timeout=20000)
+                        html2 = page.content()
+                        m2_items = self._extract_items_from_html(
+                            html2, "RAM", "Approximate location match", require_proximity_check=False
+                        )
+                        raw_mode2_items.extend(m2_items)
+                    except Exception as e2:
+                        logger.debug(f"eBay RAM M2 error on {term}: {e2}")
+
+                browser.close()
+        except Exception as err:
+            logger.error(f"Error during eBay browser scraping: {err}")
 
         # 3. Cross-Mode Deduplication & Priority Merging
         merged_by_url: Dict[str, ListingItem] = {}

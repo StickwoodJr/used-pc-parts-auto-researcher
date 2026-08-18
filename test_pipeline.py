@@ -103,8 +103,7 @@ class TestPipelineVerification:
         Checklist Item 5: If FB Marketplace encounters an error or session expiry,
         it does not crash and returns empty list.
         """
-        fb = FacebookMarketplaceSession()
-        # Non-playwright or network error should return empty list safely
+        fb = FacebookMarketplaceSession(user_data_dir="/tmp/non_existent_fb_profile_dir_xyz")
         res = fb.search_cpu_and_ram()
         assert isinstance(res, list)
 
