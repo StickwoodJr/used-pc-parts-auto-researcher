@@ -98,14 +98,20 @@ class TestPipelineVerification:
         assert item.price == 90.00
         assert item.status == "New"
 
-    def test_fb_graceful_error_handling(self):
+    def test_fb_graceful_error_handling(self, monkeypatch):
         """
         Checklist Item 5: If FB Marketplace encounters an error or session expiry,
         it does not crash and returns empty list.
         """
-        fb = FacebookMarketplaceSession(user_data_dir="/tmp/non_existent_fb_profile_dir_xyz")
+        fb = FacebookMarketplaceSession(user_data_dir="/tmp/test_dir", headless=True)
+        # Simulate Playwright context launch error
+        import playwright.sync_api
+        monkeypatch.setattr(
+            playwright.sync_api, "sync_playwright", lambda: (_ for _ in ()).throw(RuntimeError("Browser context failed"))
+        )
         res = fb.search_cpu_and_ram()
         assert isinstance(res, list)
+        assert len(res) == 0
 
     def test_sorting_order_cpu_and_ram_by_price_ascending(self):
         """
